@@ -71,3 +71,67 @@ def plot_prediction():
     ax2.set_xlabel('predicted count')
 
     plt.savefig('distribution.png')
+
+
+def northvan_accidents():
+    conn = sqlite3.connect('files.db')
+    df = pd.read_sql('select * from northvan', conn)
+    conn.close()
+
+    fig, ax = plt.subplots(figsize=(50, 50))
+    ax.scatter(x=df['Longitude'], y=df['Latitude'], s=30, color='xkcd:nice blue')
+    ax.scatter(x=df['Longitude'], y=df['Latitude'], s=30, color='xkcd:mango', alpha=0.2)
+    ax.set_aspect('equal')
+    ax.set_facecolor('xkcd:light grey')
+
+    plt.savefig('northvan.png')
+
+
+NVpop = 146288
+NVprice = 910690.30
+
+def predict_NV():
+    conn = sqlite3.connect('files.db')
+    df = pd.read_sql('SELECT Municipality, Year, SUM(CrashCount) FROM northvan GROUP BY Year', conn)
+    conn.close()
+    df.loc[5] = [df['Municipality'][0], 'Total', sum(df['SUM(CrashCount)'])]
+    return df
+
+
+
+from scipy.stats import poisson
+
+def goodness_of_fit(people):
+    conn = sqlite3.connect('files.db')
+    accidents = conn.execute('SELECT SUM(CrashCount) FROM northvan').fetchall()[0][0]
+    conn.close()
+    
+    lambda_0 = (people * accidents) / NVpop
+    expected = lambda_0 * 6
+    x = 2
+
+    p_lower = 1 - poisson.cdf(x - 1, expected)
+    p_upper = poisson.cdf(x, expected)
+
+    p_actual = min(p_lower, p_upper) * 2
+    return -1 * p_actual
+
+from scipy.optimize import minimize
+
+def num_people():
+    res = minimize(goodness_of_fit, x0=1)
+    print(f"Number of People Involved: {res.x[0]} \nTwo Tailed P-value: {-0.5 * goodness_of_fit(res.x[0])}")
+    return res.x[0]
+
+def plot_poisson():
+    xs = np.linspace(1, 10, 100)
+    ys = [-1 * goodness_of_fit(x) for x in xs]
+
+    fig, ax = plt.subplots()
+
+    ax.plot(xs, ys, color='xkcd:nice blue')
+    ax.plot([num_people() for i in range(10)], np.linspace(0, 1.5, 10), color='xkcd:mango')
+    ax.set_ylabel('Two-tailed P-value')
+    ax.set_xlabel('Number of People per Accident')
+    ax.set_ylim(0, 1.3)
+    plt.savefig('poisson.png')

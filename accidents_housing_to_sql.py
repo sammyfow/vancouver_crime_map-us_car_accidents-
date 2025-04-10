@@ -33,3 +33,9 @@ def ZC_to_sql():
     df = df.drop(columns=['Geographic Area Name'])
     df.to_sql('ZCTA', conn, if_exists='append')
     conn.close()
+
+def northvan_to_sql():
+    conn = sqlite3.connect('files.db')
+    df = pd.read_csv('Location_Full Data_data.csv')
+    df.to_sql('northvan', conn, if_exists='append')
+    conn.close()
